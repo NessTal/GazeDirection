@@ -22,6 +22,7 @@ RIGHT_EYE_INDEXES = list(set(itertools.chain(*mp_face_mesh.FACEMESH_RIGHT_EYE)))
 LEFT_IRIS_INDEXES = list(set(itertools.chain(*mp_face_mesh.FACEMESH_LEFT_IRIS)))
 RIGHT_IRIS_INDEXES = list(set(itertools.chain(*mp_face_mesh.FACEMESH_RIGHT_IRIS)))
 CONTOUS_INDEXES = list(set(itertools.chain(*mp_face_mesh.FACEMESH_CONTOURS)))
+CONTOUS_INDEXES = [i for i in CONTOUS_INDEXES if i not in LEFT_EYE_INDEXES + RIGHT_EYE_INDEXES + LEFT_IRIS_INDEXES + RIGHT_IRIS_INDEXES]
 
 INDEXES = LEFT_EYE_INDEXES + RIGHT_EYE_INDEXES + LEFT_IRIS_INDEXES + RIGHT_IRIS_INDEXES + CONTOUS_INDEXES
 
@@ -49,15 +50,15 @@ def get_features(file):
             if not ret:
                 break
 
-            image_height, image_width, _ = frame.shape
+            #image_height, image_width, _ = frame.shape
             face_mesh_results = face_mesh_images.process(frame[:,:,::-1])
-            points = np.array([np.multiply([p.x, p.y], [image_width, image_height]).astype(int) for p in face_mesh_results.multi_face_landmarks[0].landmark])
-            points[INDEXES]
-            points_over_time.append((file,i*(1000/fps),points[INDEXES]))
+            points = np.array([[p.x, p.y] for p in face_mesh_results.multi_face_landmarks[0].landmark])
+            #points = np.array([np.multiply([p.x, p.y], [image_width, image_height]).astype(int) for p in face_mesh_results.multi_face_landmarks[0].landmark])
+            points_over_time.append((file,i*(1000/fps),*points[INDEXES]))
 
             i += 1
 
-            cv2.imshow('frame', frame)
+            #cv2.imshow('frame', frame)
             #if cv2.waitKey(1) & 0xFF == ord('q'):
             #    break
 
@@ -67,7 +68,7 @@ def get_features(file):
 
     video.release()
     #video.destroyAllWindows()
-    points_over_time = pd.DataFrame(points_over_time, columns=['File','Time','Points'])
+    points_over_time = pd.DataFrame(points_over_time, columns=['File','Time',*INDEXES])
     return points_over_time
 
 
@@ -75,15 +76,17 @@ def iterate_over_files(folder,extension):
     files = os.listdir(folder)
     files.sort()
 
-    points_over_time_df = pd.DataFrame(columns=['File','Time','Points'])
+    points_over_time_df = pd.DataFrame(columns=['File','Time',*INDEXES])
     file_count = 0
     for file in files:
         if file.endswith(extension):
+            print(file_count)
             points_over_time = get_features(folder+'/'+file)
             points_over_time_df = pd.concat([points_over_time_df,points_over_time]).copy()
             file_count += 1
             if file_count % 500 == 0:
                 points_over_time_df.to_parquet('points_over_time.parquet')
+    points_over_time_df.to_parquet('points_over_time.parquet')
     return points_over_time_df
 
 folder = 'video_files'
@@ -99,3 +102,4 @@ points_over_time_df = iterate_over_files(folder,extension)
 #df.to_parquet('EyeCodingResults.parquet')
 #df.to_parquet('EyeCodingResults_cleaned.parquet')
 #df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
+#df = pd.read_parquet('points_over_time.parquet')
