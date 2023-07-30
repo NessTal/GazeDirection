@@ -3,7 +3,6 @@ import mediapipe as mp
 import itertools
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 
 pd.set_option('display.max_columns', 500)
@@ -117,18 +116,24 @@ def iterate_over_files(folder,extension):
             if file_count % 500 == 0:
                 points_over_time_df = pd.concat(points_over_time_list)
                 points_over_time_df.to_parquet('points_over_time_'+str(file_count)+'.parquet')
+                points_over_time_list = []
+    points_over_time_df = pd.concat(points_over_time_list)
     points_over_time_df.to_parquet('points_over_time_'+str(file_count)+'.parquet')
     return points_over_time_df
+
 
 # Run on all video files
 folder = 'video_files'
 extension = '.mp4'
 points_over_time_df = iterate_over_files(folder,extension)
 
+
 # Combine all parquet files into one dataframe
 files = os.listdir()
 files = [file for file in files if file.startswith('points_over_time_') and file.endswith('.parquet')]
 points_over_time_df = pd.concat([pd.read_parquet(file) for file in files])
+points_over_time_df.to_parquet('points_over_time.parquet')
+# points_over_time_df = pd.read_parquet('points_over_time.parquet')
 
 # Load hand-coded data
 hand_coded_df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
@@ -138,11 +143,13 @@ hand_coded_df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
 points_over_time_df['File'] = points_over_time_df['File'].map(lambda x: x.split('/')[1])
 points_over_time_df['Time'] = points_over_time_df['Time'].round(0).astype(int)
 points_over_time_df = points_over_time_df.merge(hand_coded_df[['File','Time','Code']], on=['File','Time'], how='left')
+points_over_time_df.to_parquet('landmarks_and_hand_coding.parquet')
 
 # Check fps bug
 hand_coded_max = pd.DataFrame(hand_coded_df.groupby('File')['Time'].max())
 max_times_df = pd.DataFrame(points_over_time_df.groupby('File')['Time'].max()).merge(hand_coded_max, on='File', how='left',suffixes=['_points','_hand'])
 max_times_df['Diff'] = max_times_df['Time_points'] - max_times_df['Time_hand']
+max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, 0, 350, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
 
 
 #df = pd.read_excel('EyeCodingResults.xlsx')
