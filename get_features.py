@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
+pd.set_option('display.max_columns', 500)
+#pd.set_option('display.max_rows', 100)
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh_images = mp_face_mesh.FaceMesh(static_image_mode=True, 
@@ -114,8 +116,8 @@ def iterate_over_files(folder,extension):
             file_count += 1
             if file_count % 500 == 0:
                 points_over_time_df = pd.concat(points_over_time_list)
-                points_over_time_df.to_parquet('points_over_time_'+file_count+'.parquet')
-    points_over_time_df.to_parquet('points_over_time_'+file_count+'.parquet')
+                points_over_time_df.to_parquet('points_over_time_'+str(file_count)+'.parquet')
+    points_over_time_df.to_parquet('points_over_time_'+str(file_count)+'.parquet')
     return points_over_time_df
 
 # Run on all video files
@@ -133,8 +135,14 @@ hand_coded_df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
 # hand_coded_df = hand_coded_df.loc[hand_coded_df['Time'] % 20 == 0] # downsample to 20ms (use if needed)
 
 # Merge hand-coded data with points_over_time_df
-points_over_time_df = points_over_time_df.merge(hand_coded_df, on=['File','Time'], how='left')
+points_over_time_df['File'] = points_over_time_df['File'].map(lambda x: x.split('/')[1])
+points_over_time_df['Time'] = points_over_time_df['Time'].round(0).astype(int)
+points_over_time_df = points_over_time_df.merge(hand_coded_df[['File','Time','Code']], on=['File','Time'], how='left')
 
+# Check fps bug
+hand_coded_max = pd.DataFrame(hand_coded_df.groupby('File')['Time'].max())
+max_times_df = pd.DataFrame(points_over_time_df.groupby('File')['Time'].max()).merge(hand_coded_max, on='File', how='left',suffixes=['_points','_hand'])
+max_times_df['Diff'] = max_times_df['Time_points'] - max_times_df['Time_hand']
 
 
 #df = pd.read_excel('EyeCodingResults.xlsx')
