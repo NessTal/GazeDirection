@@ -26,8 +26,6 @@ CONTOUS_INDEXES = list(set(itertools.chain(*mp_face_mesh.FACEMESH_CONTOURS)))
 INDEXES = LEFT_EYE_INDEXES + RIGHT_EYE_INDEXES + LEFT_IRIS_INDEXES + RIGHT_IRIS_INDEXES + CONTOUS_INDEXES
 
 
-files = os.listdir('video_files')
-
 hand_coded_df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
 # hand_coded_df = hand_coded_df.loc[hand_coded_df['Time'] % 20 == 0] # downsample to 20ms (use if needed)
 
@@ -38,8 +36,9 @@ def get_features(file):
     points_over_time = []
     ret = True
     fps = video.get(cv2.CAP_PROP_FPS)
-    reduce_frame_rate = int(fps/30)   # every 30 milliseconds (unless fps is less than 30)
-    if reduce_frame_rate < 1:
+    if fps > 30:
+        reduce_frame_rate = int(fps/30)   # every 30 milliseconds (unless fps is less than 30)
+    else:
         reduce_frame_rate = 1
     i = 0
 
@@ -54,7 +53,7 @@ def get_features(file):
             face_mesh_results = face_mesh_images.process(frame[:,:,::-1])
             points = np.array([np.multiply([p.x, p.y], [image_width, image_height]).astype(int) for p in face_mesh_results.multi_face_landmarks[0].landmark])
             points[INDEXES]
-            points_over_time.append((file,i*fps,points[INDEXES]))
+            points_over_time.append((file,i*(1000/fps),points[INDEXES]))
 
             i += 1
 
@@ -72,14 +71,24 @@ def get_features(file):
     return points_over_time
 
 
-points_over_time_df = pd.DataFrame(columns=['File','Time','Points'])
-for file in files[:10]:
-    if file.endswith('.mp4'):
-        points_over_time = get_features('video_files/'+file)
-        points_over_time_df = pd.concat([points_over_time_df,points_over_time])
+def iterate_over_files(folder,extension):
+    files = os.listdir(folder)
+    files.sort()
 
+    points_over_time_df = pd.DataFrame(columns=['File','Time','Points'])
+    file_count = 0
+    for file in files:
+        if file.endswith(extension):
+            points_over_time = get_features(folder+'/'+file)
+            points_over_time_df = pd.concat([points_over_time_df,points_over_time]).copy()
+            file_count += 1
+            if file_count % 500 == 0:
+                points_over_time_df.to_parquet('points_over_time.parquet')
+    return points_over_time_df
 
-
+folder = 'video_files'
+extension = '.mp4'
+points_over_time_df = iterate_over_files(folder,extension)
 
 
 
