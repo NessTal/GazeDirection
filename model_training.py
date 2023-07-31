@@ -4,6 +4,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
+import joblib
 
 data_file = 'landmarks_and_hand_coding_filtered.parquet'
 
@@ -12,6 +13,11 @@ def load_data_and_split_train_test(data_file,test_size=0.2):
     data = pd.read_parquet(data_file)
     data['ParticipantID'] = [file.split('_')[0] for file in data['File']]
     #data = data[data['Code'] != 'x'].copy()
+
+    # Remove unnecessary columns (too many contour landmarks)
+    columns_to_remove = [0, 13, 14, 17, 21, 37, 39, 40, 46, 52, 53, 54, 55, 61, 63, 65, 66, 67, 70, 78, 80, 81, 82, 84, 87, 88, 91, 93, 95, 105, 107, 109, 127, 132, 136, 146, 148, 150, 172, 176, 178, 181, 185, 191, 251, 267, 269, 270, 276, 282, 283, 284, 285, 291, 293, 295, 296, 297, 300, 308, 310, 311, 312, 314, 317, 318, 321, 323, 324, 334, 336, 338, 356, 361, 365, 375, 377, 379, 397, 400, 402, 405, 409, 415]
+    columns_to_remove = list(map(str,columns_to_remove))
+    data = data.drop(columns=columns_to_remove)
 
     # Get features
     X = pd.DataFrame()
@@ -46,6 +52,7 @@ def load_data_and_split_train_test(data_file,test_size=0.2):
 
 #X_train, X_test, Y_train, Y_test = load_data_and_split_train_test(data_file)
 
+
 def xgboost_with_grid_search(X_train, X_test, Y_train, Y_test, parameters):
     # Encode labels
     Y_train = LabelEncoder().fit_transform(Y_train)
@@ -55,21 +62,22 @@ def xgboost_with_grid_search(X_train, X_test, Y_train, Y_test, parameters):
     xgb_model = xgb.XGBClassifier(objective="multi:softmax",random_state=42)
 
     # Run grid search
-    grid_search = GridSearchCV(xgb_model, parameters, scoring='accuracy', n_jobs=6, cv=5, verbose=3)
-    grid_search.fit(X_train[3000:5000], Y_train[3000:5000])
+    grid_search = GridSearchCV(xgb_model, parameters, scoring='accuracy', n_jobs=23, cv=3, verbose=2)
+    grid_search.fit(X_train, Y_train)
+
+    # Save grid search & model
+    grid_search.best_estimator_.save_model('xgb_model.json')
+    joblib.dump(grid_search, 'grid_search_xgb.pkl')
 
     # Print best parameters
     print(grid_search.best_params_)
     print(grid_search.best_score_)
 
-    # Save model
-    grid_search.best_estimator_.save_model('xgb_model.json')
-
     # Predict on test set
-    Y_pred = grid_search.predict(X_test[13000:15000])
+    Y_pred = grid_search.predict(X_test)
 
     # Print accuracy
-    print('Accuracy: '+str(np.mean(Y_pred == Y_test[13000:15000])))
+    print('Accuracy: '+str(np.mean(Y_pred == Y_test)))
 
     return grid_search, Y_pred
 
@@ -86,5 +94,5 @@ if __name__ == '__main__':
     'max_depth': range(2, 10, 1),
     'n_estimators': range(60, 220, 40),
     'learning_rate': [0.1, 0.01, 0.05]
-}
+    }
     grid_search, Y_pred = xgboost_with_grid_search(X_train, X_test, Y_train, Y_test, parameters)
