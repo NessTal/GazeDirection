@@ -152,9 +152,7 @@ max_times_df['Diff'] = max_times_df['Time_points'] - max_times_df['Time_hand']
 max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, -350, 350, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
 
 points_over_time_df_filtered = points_over_time_df.loc[points_over_time_df['File'].isin(max_times_df.loc[max_times_df['Category'] == 'small'].index)]
+points_over_time_df_filtered = points_over_time_df_filtered.dropna(axis=0)
+points_over_time_df_filtered = points_over_time_df_filtered.reset_index(drop=True)
+points_over_time_df_filtered.to_parquet('landmarks_and_hand_coding_filtered.parquet')
 
-#df = pd.read_excel('EyeCodingResults.xlsx')
-#df.to_parquet('EyeCodingResults.parquet')
-#df.to_parquet('EyeCodingResults_cleaned.parquet')
-#df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
-#df = pd.read_parquet('points_over_time.parquet')
