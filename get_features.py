@@ -149,8 +149,9 @@ points_over_time_df.to_parquet('landmarks_and_hand_coding.parquet')
 hand_coded_max = pd.DataFrame(hand_coded_df.groupby('File')['Time'].max())
 max_times_df = pd.DataFrame(points_over_time_df.groupby('File')['Time'].max()).merge(hand_coded_max, on='File', how='left',suffixes=['_points','_hand'])
 max_times_df['Diff'] = max_times_df['Time_points'] - max_times_df['Time_hand']
-max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, 0, 350, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
+max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, -350, 350, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
 
+points_over_time_df_filtered = points_over_time_df.loc[points_over_time_df['File'].isin(max_times_df.loc[max_times_df['Category'] == 'small'].index)]
 
 #df = pd.read_excel('EyeCodingResults.xlsx')
 #df.to_parquet('EyeCodingResults.parquet')
