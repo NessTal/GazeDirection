@@ -142,6 +142,8 @@ hand_coded_df = pd.read_parquet('EyeCodingResults_cleaned.parquet')
 # Merge hand-coded data with points_over_time_df
 points_over_time_df['File'] = points_over_time_df['File'].map(lambda x: x.split('/')[1])
 points_over_time_df['Time'] = points_over_time_df['Time'].round(0).astype(int)
+hand_coded_df = hand_coded_df.rename(columns={'Time' : 'Time_adjusted'})
+hand_coded_df['Time'] = hand_coded_df['Time_adjusted']+hand_coded_df['msDelay']
 points_over_time_df = points_over_time_df.merge(hand_coded_df[['File','Time','Code']], on=['File','Time'], how='left')
 points_over_time_df.to_parquet('landmarks_and_hand_coding.parquet')
 
@@ -149,7 +151,7 @@ points_over_time_df.to_parquet('landmarks_and_hand_coding.parquet')
 hand_coded_max = pd.DataFrame(hand_coded_df.groupby('File')['Time'].max())
 max_times_df = pd.DataFrame(points_over_time_df.groupby('File')['Time'].max()).merge(hand_coded_max, on='File', how='left',suffixes=['_points','_hand'])
 max_times_df['Diff'] = max_times_df['Time_points'] - max_times_df['Time_hand']
-max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, -350, 350, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
+max_times_df['Category'] = pd.cut(max_times_df['Diff'], bins=[-5000, -200, 200, 5000], include_lowest=True, labels=['minus', 'small', 'large'])
 
 points_over_time_df_filtered = points_over_time_df.loc[points_over_time_df['File'].isin(max_times_df.loc[max_times_df['Category'] == 'small'].index)]
 points_over_time_df_filtered = points_over_time_df_filtered.dropna(axis=0)

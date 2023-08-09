@@ -4,6 +4,7 @@ import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
+#from sklearn.metrics import accuracy_score
 import joblib
 
 data_file = 'landmarks_and_hand_coding_filtered.parquet'
@@ -78,6 +79,7 @@ def xgboost_with_grid_search(X_train, X_test, Y_train, Y_test, parameters):
 
     # Print accuracy
     print('Accuracy: '+str(np.mean(Y_pred == Y_test)))
+    #print('Accuracy:'+str(accuracy_score(Y_test, Y_pred)))
 
     return grid_search, Y_pred
 
@@ -96,3 +98,7 @@ if __name__ == '__main__':
     'learning_rate': [0.1, 0.01, 0.05]
     }
     grid_search, Y_pred = xgboost_with_grid_search(X_train, X_test, Y_train, Y_test, parameters)
+
+
+
+#grid_search = joblib.load('grid_search_xgb.pkl')
